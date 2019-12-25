@@ -1,0 +1,1 @@
+{"requestTime":2,"maxTime":0,"minTime":0,"successNum":0,"failureNum":1062745,"conCurrency":10,"errCode":{"5001":1062745},"errCodeMsg":{"5001":"Get 172.19.54.178: unsupported protocol scheme \"\""},"averageSuccessReq":{"1":0,"2":0},"averageErrorReq":{"1":691324,"2":371421},"status":true}

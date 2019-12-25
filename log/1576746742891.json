@@ -1,0 +1,1 @@
+{"requestTime":3,"maxTime":0,"minTime":0,"successNum":170,"failureNum":10,"conCurrency":10,"errCode":{"5003":10},"errCodeMsg":{"5003":"接收数据失败"},"averageSuccessReq":{"1":100,"2":50,"3":20},"averageErrorReq":{"1":0,"2":0,"3":10},"status":true}

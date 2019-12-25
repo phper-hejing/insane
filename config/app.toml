@@ -1,0 +1,15 @@
+# http服务
+[http]
+bind = ":9500"
+HttpOrigin = "Access-Control-Allow-Origin"
+HttpHeaders = "Access-Control-Allow-Headers"
+HttpContentType = "application/json"
+MaxIdleConnsPerHost = 100
+
+# worker
+[worker]
+taskLife = 100
+
+# log
+[log]
+location = "./log"
