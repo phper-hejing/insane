@@ -4,7 +4,7 @@
 
 使用G2Plot展示图表，实时显示服务器负载，压测请求数.
 
-（https://imgur.com/gPGQuEc）
+（https://i.imgur.com/gPGQuEc.png）
 
 ```
 Header
