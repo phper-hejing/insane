@@ -1,8 +1,10 @@
 # insane
 
-一个 Go 编写的 http 并发测试客户端
-结果呈现一个线型图，展示每秒的成功请求数和失败数
-可以实时查看服务器负载情况
+一个 Go 编写的 http 并发测试客户端.
+
+使用G2Plot展示图表，实时显示服务器负载，压测请求数.
+
+![insane](https://i.imgur.com/gPGQuEc.png)
 
 ```
 Header
