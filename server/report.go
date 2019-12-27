@@ -65,6 +65,10 @@ func (report *Report) ReceivingResults(id string, conCurrency uint64, ch <-chan 
 			errCode[data.ErrCode]++
 			if _, ok := errCodeMsg[data.ErrCode]; !ok {
 				errCodeMsg[data.ErrCode] = data.ErrMsg
+			} else {
+				if errCodeMsg[data.ErrCode] != data.ErrMsg {
+					errCodeMsg[data.ErrCode+1] = data.ErrMsg
+				}
 			}
 			averageErrorReq[curSecond]++
 			failureNum++

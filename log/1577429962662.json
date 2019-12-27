@@ -1,0 +1,1 @@
+{"requestTime":8,"maxTime":3121,"minTime":2060,"successNum":10,"failureNum":10,"conCurrency":10,"errCode":{"5001":10},"errCodeMsg":{"5001":"Post http://www.fh.com/: net/http: request canceled (Client.Timeout exceeded while awaiting headers)"},"averageSuccessReq":{"5":0,"7":6,"8":4},"averageErrorReq":{"5":10,"7":0,"8":0},"status":true}

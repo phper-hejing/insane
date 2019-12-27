@@ -1,0 +1,1 @@
+{"requestTime":3,"maxTime":0,"minTime":0,"successNum":0,"failureNum":355,"conCurrency":10,"errCode":{"405":355},"errCodeMsg":{"405":"405 Method Not Allowed"},"averageSuccessReq":{"1":0,"2":0,"3":0},"averageErrorReq":{"1":220,"2":104,"3":31},"status":true}

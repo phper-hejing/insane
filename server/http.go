@@ -25,7 +25,7 @@ func Http(ch chan<- *Response, wg *sync.WaitGroup, request *Request) {
 		DisableCompression:  false,
 		DisableKeepAlives:   false,
 	}
-	client := &http.Client{Transport: tr, Timeout: 5 * time.Second}
+	client := &http.Client{Transport: tr, Timeout: 10 * time.Second}
 
 	for {
 		select {
@@ -95,6 +95,8 @@ func getHttpRequest(request *Request) (req *http.Request, err error) {
 }
 
 func setHeader(header map[string]string, req *http.Request) {
+	// default content-type:application/json
+	req.Header.Add("Content-Type", "application/json")
 	for k, v := range header {
 		if k != "" && v != "" {
 			req.Header.Add(k, v)
