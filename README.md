@@ -18,6 +18,14 @@ Cookie
         sample1:123;sample2:456;sample3:789;...
 ```
 
+## 使用
+
+进入到项目根目录
+windows: insane.exe
+linux: ./insane
+打开浏览器
+http://localhost:9500
+
 ## 压测例子
 
 压测机器：4 核 8G，模拟 5000 用户，发起 http 请求
