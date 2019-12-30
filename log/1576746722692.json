@@ -1,1 +1,0 @@
-{"requestTime":0,"maxTime":0,"minTime":0,"successNum":0,"failureNum":100,"conCurrency":100,"errCode":{"5001":100},"errCodeMsg":{"5001":"malformed ws or wss URL"},"averageSuccessReq":{"1":0},"averageErrorReq":{"1":100},"status":true}

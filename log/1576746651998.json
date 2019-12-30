@@ -1,1 +1,0 @@
-{"requestTime":3,"maxTime":0,"minTime":0,"successNum":0,"failureNum":2592,"conCurrency":100,"errCode":{"5001":2592},"errCodeMsg":{"5001":"Get https://www.layui.com/: remote error: tls: handshake failure"},"averageSuccessReq":{"1":0,"2":0,"3":0},"averageErrorReq":{"1":1322,"2":683,"3":587},"status":true}

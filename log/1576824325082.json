@@ -1,1 +1,0 @@
-{"requestTime":5,"maxTime":0,"minTime":0,"successNum":0,"failureNum":10,"conCurrency":10,"errCode":{"5001":10},"errCodeMsg":{"5001":"Get http://172.19.151.153:8080: net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)"},"averageSuccessReq":{"4":0,"5":0},"averageErrorReq":{"4":6,"5":4},"status":true}
