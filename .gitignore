@@ -1,0 +1,4 @@
+/go_build_insane.exe
+/.idea
+/.gitignore
+/log/*.json
