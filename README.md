@@ -2,9 +2,7 @@
 
 一个 Go 编写的 http 并发测试客户端.
 
-使用G2Plot展示图表，实时显示服务器负载，压测请求数.
-
-![insane](https://i.imgur.com/gPGQuEc.png)
+技术栈：go react
 
 ```
 Header
@@ -19,3 +17,20 @@ Body
 Cookie
         sample1:123;sample2:456;sample3:789;...
 ```
+
+###压测例子
+
+压测机器：4 核 8G
+
+受压测机器：2 核 4G
+
+模拟 5000 用户，发起 http 请求
+
+####go
+
+![go](https://i.imgur.com/4Oczg88.png)
+![go](https://i.imgur.com/voq27ou.png)
+
+####php
+![php](https://i.imgur.com/NGkJuQM.png)
+![php](https://i.imgur.com/KUJyFEB.png)
