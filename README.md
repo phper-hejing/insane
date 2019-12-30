@@ -21,10 +21,12 @@ Cookie
 ## 使用
 
 进入到项目根目录
+
 windows: insane.exe
+
 linux: ./insane
-打开浏览器
-http://localhost:9500
+
+访问：http://localhost:9500
 
 ## 压测例子
 
