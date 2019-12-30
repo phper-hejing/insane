@@ -1,0 +1,1 @@
+{"requestTime":9,"maxTime":8456,"minTime":3648,"successNum":311,"failureNum":491,"conCurrency":500,"errCode":{"502":491},"errCodeMsg":{"502":"502 Bad Gateway"},"averageSuccessReq":{"1":0,"2":0,"3":6,"4":50,"5":61,"6":58,"7":46,"8":44,"9":46},"averageErrorReq":{"1":153,"2":138,"3":48,"4":152,"5":0,"6":0,"7":0,"8":0,"9":0},"status":true}
