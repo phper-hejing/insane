@@ -13,3 +13,7 @@ taskLife = 100
 # log
 [log]
 location = "./log"
+
+# cluster
+[cluster]
+masterUrl = ""

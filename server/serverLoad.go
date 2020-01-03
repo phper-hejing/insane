@@ -2,10 +2,12 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/donnie4w/go-logger/logger"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
 	"insane/utils"
+	"math"
 	"sync"
 	"time"
 )
@@ -18,7 +20,13 @@ type ServerLoad struct {
 	Mem            map[int64]uint32   `json:"mem"`
 	Conn           map[int64]uint32   `json:"conn"`
 	Io             map[int64]*IoInfo  `json:"io"`
+	ServerInfo     ServerInfo         `json:"serverInfo"`
 	M              sync.Mutex         `json:"-"`
+}
+
+type ServerInfo struct {
+	Cpu uint32 `json:"cpu"`
+	Mem uint32 `json:"mem"`
 }
 
 type IoInfo struct {
@@ -29,6 +37,7 @@ type IoInfo struct {
 var InsaneLoad ServerLoad
 
 func (serverLoad *ServerLoad) Init() error {
+	serverLoad.GetServerInfo()
 	serverLoad.Cpu = make(map[int64]uint32)
 	serverLoad.Mem = make(map[int64]uint32)
 	serverLoad.Conn = make(map[int64]uint32)
@@ -82,9 +91,27 @@ func (serverLoad *ServerLoad) Get() (string, error) {
 	return string(data), nil
 }
 
+// 最近num个cpu的百分比
+func (serverLoad *ServerLoad) GetLatelyCpuLoad(num int) (cpuLoad []uint32) {
+
+	for i := 0; i < num; i++ {
+		cpuLoad = append(cpuLoad, serverLoad.getCpuLoad())
+	}
+	return
+}
+
+func (serverLoad *ServerLoad) GetServerInfo() {
+	cpuNum, _ := cpu.Counts(false)
+	virtualMem, _ := mem.VirtualMemory()
+	memSize := uint32(math.Ceil(float64(virtualMem.Total) / 1024 / 1024 / 1024))
+	serverLoad.ServerInfo.Cpu = uint32(cpuNum)
+	serverLoad.ServerInfo.Mem = memSize
+}
+
 func (serverLoad *ServerLoad) getCpuLoad() uint32 {
 	c, err := cpu.Percent(time.Second*1, false)
 	if err != nil {
+		logger.Debug(err)
 		return 0
 	}
 	return uint32(c[0])
@@ -93,6 +120,7 @@ func (serverLoad *ServerLoad) getCpuLoad() uint32 {
 func (serverLoad *ServerLoad) getMemLoad() uint32 {
 	mem, err := mem.VirtualMemory()
 	if err != nil {
+		logger.Debug(err)
 		return 0
 	}
 	return uint32(mem.UsedPercent)
@@ -101,6 +129,7 @@ func (serverLoad *ServerLoad) getMemLoad() uint32 {
 func (serverLoad *ServerLoad) getIoLoad() *IoInfo {
 	io, err := net.IOCounters(false)
 	if err != nil {
+		logger.Debug(err)
 		return nil
 	}
 	initBytesSent := serverLoad.InitIoCounters.BytesSent
@@ -118,6 +147,7 @@ func (serverLoad *ServerLoad) getIoLoad() *IoInfo {
 func (serverLoad *ServerLoad) getConn() uint32 {
 	conn, err := net.Connections("all")
 	if err != nil {
+		logger.Debug(err)
 		return 0
 	}
 	return uint32(len(conn))
@@ -126,6 +156,7 @@ func (serverLoad *ServerLoad) getConn() uint32 {
 func (serverLoad *ServerLoad) saveIoCounters() error {
 	ioc, err := net.IOCounters(false)
 	if err != nil {
+		logger.Debug(err)
 		return err
 	}
 	serverLoad.InitIoCounters = ioc[0]

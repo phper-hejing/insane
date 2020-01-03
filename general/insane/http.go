@@ -32,14 +32,14 @@ func HttpConfigInit() {
 }
 
 func RegisterRoutesHandle() {
-	http.HandleFunc("/request", api.Push)
-	http.HandleFunc("/info", api.Info)
-	http.HandleFunc("/del", api.Del)
-	http.HandleFunc("/ws", api.WsInfo)
-	http.HandleFunc("/serverLoad", api.ServerLoad)
+	http.HandleFunc("/request", api.HandleMessage(new(api.PushMessage)))
+	http.HandleFunc("/info", api.HandleMessage(new(api.InfoMessage)))
+	http.HandleFunc("/del", api.HandleMessage(new(api.DeleteMessage)))
+	http.HandleFunc("/ws", api.HandleMessage(new(api.ReportMessage)))
+	http.HandleFunc("/serverLoad", api.HandleMessage(new(api.ServerLoadMessage)))
+	http.HandleFunc("/test", api.HandleMessage(new(api.TestMessage)))
 
 	// 资源引用
 	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./frontend/"))))
 
-	http.HandleFunc("/test", api.Test)
 }

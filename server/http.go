@@ -1,52 +1,64 @@
 package server
 
 import (
-	"crypto/tls"
 	"encoding/json"
-	"insane/general/base/appconfig"
+	"fmt"
+	"github.com/donnie4w/go-logger/logger"
+	"insane/constant"
+	"insane/utils"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
-
-	"insane/constant"
-	"insane/utils"
 )
 
-func Http(ch chan<- *Response, wg *sync.WaitGroup, request *Request) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-			ServerName:         request.Url,
-		},
-		MaxIdleConnsPerHost: appconfig.GetConfig().Http.MaxIdleConnsPerHost,
-		DisableCompression:  false,
-		DisableKeepAlives:   false,
-	}
-	client := &http.Client{Transport: tr, Timeout: 10 * time.Second}
+var i int64
+var m sync.Mutex
 
+const HTTP_RESPONSE_TIMEOUT = time.Duration(5) * time.Second
+
+func Http(ch chan<- *Response, wg *sync.WaitGroup, request *Request) {
+	sentCh := make(chan bool)
 	for {
 		select {
 		case <-request.stop:
+
+			m.Lock()
+			i++
+			logger.Debug(fmt.Sprintf("%d号协程关闭", i))
+			if i == int64(cap(request.stop)) {
+				i = 0
+			}
+			m.Unlock()
+
+			close(sentCh)
 			wg.Done()
 			return
 		default:
-			resp := httpSend(client, request)
-			ch <- resp
+			go httpSend(request.client, request, ch, sentCh)
+			<-sentCh
 		}
 	}
 }
 
-func httpSend(client *http.Client, request *Request) (resp *Response) {
+func httpSend(client *http.Client, request *Request, ch chan<- *Response, sentCh chan bool) {
 	var (
+		status    = false
 		isSuccess = false
 		errCode   = http.StatusOK
 		errMsg    = ""
 		start     = utils.Now()
 	)
-	resp = new(Response)
+	resp := new(Response)
+	go func() {
+		t := time.NewTicker(HTTP_RESPONSE_TIMEOUT)
+		<-t.C
+		if status == false {
+			httpSendSentCh(sentCh)
+		}
+	}()
 
 	req, err := getHttpRequest(request)
 	if err != nil {
@@ -69,7 +81,26 @@ func httpSend(client *http.Client, request *Request) (resp *Response) {
 	resp.IsSuccess = isSuccess
 	resp.WasteTime = uint64(end - start)
 
-	return
+	httpSendRespCh(ch, resp)
+	httpSendSentCh(sentCh)
+}
+
+func httpSendSentCh(sentCh chan bool) {
+	defer func() {
+		if err := recover(); err != nil {
+			//logger.Debug(err)
+		}
+	}()
+	sentCh <- true
+}
+
+func httpSendRespCh(respCh chan<- *Response, response *Response) {
+	defer func() {
+		if err := recover(); err != nil {
+			//logger.Debug(err)
+		}
+	}()
+	respCh <- response
 }
 
 func verify(resp *http.Response) (isSuccess bool, code int, msg string) {

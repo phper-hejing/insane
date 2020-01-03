@@ -5,9 +5,10 @@ import (
 )
 
 type InsaneConfigs struct {
-	Http   HttpConfig `toml:"http"`
-	Worker Worker     `toml:"worker"`
-	Log    Log        `toml:"log"`
+	Http    HttpConfig `toml:"http"`
+	Worker  Worker     `toml:"worker"`
+	Log     Log        `toml:"log"`
+	Cluster Cluster    `toml:"cluster"`
 }
 
 type HttpConfig struct {
@@ -16,6 +17,10 @@ type HttpConfig struct {
 	HttpHeaders         string `toml:"HttpHeaders"`     //= "Access-Control-Allow-Headers"
 	HttpContentType     string `toml:"HttpContentType"` //= "application/json"
 	MaxIdleConnsPerHost int    `toml:"MaxIdleConnsPerHost"`
+}
+
+type Cluster struct {
+	MasterUrl string `toml:"masterUrl"`
 }
 
 type Worker struct {

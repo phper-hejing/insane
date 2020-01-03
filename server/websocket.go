@@ -57,7 +57,7 @@ func wsSend(conn *websocket.Conn, request *Request) (err error) {
 
 	// 发送数据
 	data := CreateJsonBody(request.Body)
-	if err := conn.WriteMessage(websocket.TextMessage, []byte(data)); err != nil {
+	if err := conn.WriteMessage(constant.MSG_TYPE, []byte(data)); err != nil {
 		logger.Debug(err)
 		return err
 	}
