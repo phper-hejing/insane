@@ -37,6 +37,7 @@ func RegisterRoutesHandle() {
 	http.HandleFunc("/del", api.HandleMessage(new(api.DeleteMessage)))
 	http.HandleFunc("/ws", api.HandleMessage(new(api.ReportMessage)))
 	http.HandleFunc("/serverLoad", api.HandleMessage(new(api.ServerLoadMessage)))
+	http.HandleFunc("/upload", api.HandleMessage(new(api.UploadMessage)))
 	http.HandleFunc("/test", api.HandleMessage(new(api.TestMessage)))
 
 	// 资源引用
