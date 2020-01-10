@@ -15,9 +15,9 @@ var defaultDialer = websocket.Dialer{
 	HandshakeTimeout: 20 * time.Second,
 }
 
-func Websocket(ch chan<- *Response, wg *sync.WaitGroup, request *Request) {
+func Websocket(ch chan<- *Response, wg *sync.WaitGroup, insaneRequest *InsaneRequest) {
 
-	conn, _, err := defaultDialer.Dial(request.Url, nil)
+	conn, _, err := defaultDialer.Dial(insaneRequest.HttpRequest.Url, nil)
 
 	defer func() {
 		wg.Done()
@@ -43,20 +43,20 @@ func Websocket(ch chan<- *Response, wg *sync.WaitGroup, request *Request) {
 
 	for {
 		select {
-		case <-request.stop:
+		case <-insaneRequest.HttpRequest.stop:
 			rstop <- 1
 			return
 		default:
 			time.Sleep(100 * time.Millisecond)
-			wsSend(conn, request)
+			wsSend(conn, insaneRequest)
 		}
 	}
 }
 
-func wsSend(conn *websocket.Conn, request *Request) (err error) {
+func wsSend(conn *websocket.Conn, insaneRequest *InsaneRequest) (err error) {
 
 	// 发送数据
-	data := CreateJsonBody(request.Body)
+	data := CreateJsonBody(insaneRequest.HttpRequest.HttpBody)
 	if err := conn.WriteMessage(constant.MSG_TYPE, []byte(data)); err != nil {
 		logger.Debug(err)
 		return err

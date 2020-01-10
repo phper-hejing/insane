@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"github.com/donnie4w/go-logger/logger"
 	"github.com/gorilla/websocket"
 	"insane/server"
@@ -12,7 +11,7 @@ import (
 )
 
 type IMessage interface {
-	Init(http.ResponseWriter, *http.Request)
+	Init(http.ResponseWriter, *http.Request, bool)
 	Do()
 }
 
@@ -20,12 +19,12 @@ type Message struct {
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
 	WsConn         *websocket.Conn
-	InsaneRequest  *server.Request
+	InsaneRequest  *server.InsaneRequest
 }
 
 var upgrader = websocket.Upgrader{} // use default options
 
-func (imsg *Message) Init(writer http.ResponseWriter, request *http.Request) {
+func (imsg *Message) Init(writer http.ResponseWriter, request *http.Request, isParseBody bool) {
 
 	// 是否是websocket请求
 	var wsConn *websocket.Conn
@@ -42,14 +41,7 @@ func (imsg *Message) Init(writer http.ResponseWriter, request *http.Request) {
 		}
 	}
 
-	// 是否是multipart
-	isParseBody := true
-	HeaderContentType := strings.ToLower(request.Header.Get("content-type"))
-	if strings.Contains(HeaderContentType, "multipart") {
-		isParseBody = false
-	}
-
-	insaneReq := server.GenerateRequest()
+	insaneReq := server.GenerateInsaneRequest()
 	if isParseBody {
 		// 解析请求参数
 		body, err := ioutil.ReadAll(request.Body)
@@ -57,9 +49,7 @@ func (imsg *Message) Init(writer http.ResponseWriter, request *http.Request) {
 			logger.Debug(err)
 		}
 		if len(body) != 0 {
-			if err := json.Unmarshal(body, insaneReq); err != nil {
-				logger.Debug(err)
-			}
+			insaneReq.Parse(body)
 		}
 	}
 
@@ -69,7 +59,7 @@ func (imsg *Message) Init(writer http.ResponseWriter, request *http.Request) {
 	imsg.WsConn = wsConn
 }
 
-func HandleMessage(imsg IMessage) http.HandlerFunc {
+func HandleMessage(imsg IMessage, isParseBody bool) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -82,7 +72,7 @@ func HandleMessage(imsg IMessage) http.HandlerFunc {
 			return
 		}
 
-		imsg.Init(writer, request)
+		imsg.Init(writer, request, isParseBody)
 		imsg.Do()
 	}
 }

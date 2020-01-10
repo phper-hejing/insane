@@ -20,9 +20,9 @@ type TaskList struct {
 }
 
 type Task struct {
-	Request  *Request
-	initOnce sync.Once
-	stop     chan int
+	InsaneRequest *InsaneRequest
+	initOnce      sync.Once
+	stop          chan int
 }
 
 var TK = &TaskList{
@@ -35,17 +35,17 @@ const (
 	RUN_TASK        = 3
 )
 
-func (taskList *TaskList) TaskListAdd(request *Request) (err error) {
-	if err = request.VerifyParam(); err != nil {
+func (taskList *TaskList) TaskListAdd(insaneRequest *InsaneRequest) (err error) {
+	if err = insaneRequest.VerifyParam(); err != nil {
 		return
 	}
 	task := &Task{
-		Request: request,
+		InsaneRequest: insaneRequest,
 	}
 	task.initOnce.Do(func() {
 		task.Init()
 	})
-	taskList.setTasks(task.Request.Id, task, UNFINISHED_TASK)
+	taskList.setTasks(task.InsaneRequest.Id, task, UNFINISHED_TASK)
 	return
 }
 
@@ -193,7 +193,7 @@ func (taskList *TaskList) TaskListRun() {
 			// 循环任务列表，插入最新的任务ID
 			// 每次只能插入一条任务且任务被消费才能继续插入任务
 			for _, v := range taskList.getTasksAll(UNFINISHED_TASK) {
-				taskList.setTasks(v.Request.Id, v, RUN_TASK) // 任务加入到正在运行任务
+				taskList.setTasks(v.InsaneRequest.Id, v, RUN_TASK) // 任务加入到正在运行任务
 				taskList.CurTask <- v
 			}
 		}
@@ -202,33 +202,33 @@ func (taskList *TaskList) TaskListRun() {
 	for {
 		task := <-taskList.CurTask // 准备执行的任务id
 		task.Run()
-		taskList.setTasks(task.Request.Id, task, COMPLETED_TASK) // 任务加入到已完成任务列表
-		taskList.TaskListTickerRemove(task.Request.Id)           // 已完成任务列表定时删除
+		taskList.setTasks(task.InsaneRequest.Id, task, COMPLETED_TASK) // 任务加入到已完成任务列表
+		taskList.TaskListTickerRemove(task.InsaneRequest.Id)           // 已完成任务列表定时删除
 	}
 }
 
 func (task *Task) Init() {
 	id := strconv.FormatInt(utils.Now(), 10)
-	task.Request.Id = id
-	task.Request.Report = new(Report)
-	task.Request.initStopCh()
+	task.InsaneRequest.Id = id
+	task.InsaneRequest.Report = new(Report)
+	task.InsaneRequest.initStopCh()
 }
 
 func (task *Task) Run() {
 	task.initOnce.Do(func() {
 		task.Init()
 	})
-	task.Request.Dispose()
+	task.InsaneRequest.Dispose()
 }
 
 func (task *Task) Stop() error {
-	if task.Request.Status {
+	if task.InsaneRequest.Status {
 		return nil
 	}
-	task.Request.Status = true
-	return task.Request.Close()
+	task.InsaneRequest.Status = true
+	return task.InsaneRequest.Close()
 }
 
 func (task *Task) Info() string {
-	return task.Request.Report.Get()
+	return task.InsaneRequest.Report.Get()
 }

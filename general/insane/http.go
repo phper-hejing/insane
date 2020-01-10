@@ -32,15 +32,19 @@ func HttpConfigInit() {
 }
 
 func RegisterRoutesHandle() {
-	http.HandleFunc("/request", api.HandleMessage(new(api.PushMessage)))
-	http.HandleFunc("/info", api.HandleMessage(new(api.InfoMessage)))
-	http.HandleFunc("/del", api.HandleMessage(new(api.DeleteMessage)))
-	http.HandleFunc("/ws", api.HandleMessage(new(api.ReportMessage)))
-	http.HandleFunc("/serverLoad", api.HandleMessage(new(api.ServerLoadMessage)))
-	http.HandleFunc("/upload", api.HandleMessage(new(api.UploadMessage)))
-	http.HandleFunc("/test", api.HandleMessage(new(api.TestMessage)))
+	http.HandleFunc("/request", api.HandleMessage(new(api.PushMessage), true))
+	http.HandleFunc("/info", api.HandleMessage(new(api.InfoMessage), true))
+	http.HandleFunc("/del", api.HandleMessage(new(api.DeleteMessage), true))
+	http.HandleFunc("/ws", api.HandleMessage(new(api.WsMessage), true))
+	http.HandleFunc("/serverLoad", api.HandleMessage(new(api.ServerLoadMessage), true))
+	http.HandleFunc("/upload", api.HandleMessage(new(api.UploadMessage), false))
+	http.HandleFunc("/data", api.HandleMessage(new(api.DataMessage), false))
+	http.HandleFunc("/test", api.HandleMessage(new(api.TestMessage), true))
+
+	http.HandleFunc("/getCsvInfo/", api.HandleMessage(new(api.CsvInfoMessage), true))
 
 	// 资源引用
 	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./frontend/"))))
+	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir("./download/"))))
 
 }

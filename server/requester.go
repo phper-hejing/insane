@@ -1,51 +1,38 @@
 package server
 
 import (
-	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/donnie4w/go-logger/logger"
-	"insane/general/base/appconfig"
-	"insane/utils"
+	"github.com/tidwall/gjson"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
 )
 
-type Request struct {
+type InsaneRequest struct {
 	// 请求赋值
-	Url         string            `json:"url"`        // 请求域名
-	ConCurrency uint64            `json:"conCurrent"` // 并发数
-	Duration    uint64            `json:"duration"`   // 持续时间（秒）
-	Interval    int32             `json:"interval"`   // 请求间隔时间
-	Method      string            `json:"method"`     // 请求方法
-	Form        string            `json:"form"`       // http|websocket
-	Type        string            `json:"type"`       // 请求模式 （common | capacity） default：common
-	Header      map[string]string `json:"header"`
-	Cookie      string            `json:"cookie"`
-	Body        []*BodyField      `json:"body"`
+	HttpRequest *HttpRequest `json:"httpRequest"`
+	ConCurrency uint64       `json:"conCurrent"` // 并发数
+	Duration    uint64       `json:"duration"`   // 持续时间（秒）
+	Interval    int32        `json:"interval"`   // 请求间隔时间
+	Form        string       `json:"form"`       // http|websocket
+	Type        string       `json:"type"`       // 请求模式 （common | capacity） default：common
 
 	// 系统赋值
-	Id     string `json:"id"`
-	Status bool   `json:"status"`
-	stop   chan int
-	client *http.Client `json:"-"`
-	Report *Report      `json:"report"`
-}
-
-type BodyField struct {
-	Name    string      `json:"name"`
-	Type    string      `json:"type"` // int|string
-	Len     int64       `json:"len"`
-	Default interface{} `json:"default"`
+	Id     string  `json:"id"`
+	Status bool    `json:"status"`
+	Report *Report `json:"report"`
 }
 
 type Response struct {
-	WasteTime uint64 // 消耗时间（毫秒）
-	IsSuccess bool   // 是否请求成功
-	ErrCode   int    // 错误码
-	ErrMsg    string // 错误提示
+	WasteTime uint64      // 消耗时间（毫秒）
+	IsSuccess bool        // 是否请求成功
+	ErrCode   int         // 错误码
+	ErrMsg    string      // 错误提示
+	Data      interface{} // 响应数据
 }
 
 const (
@@ -56,22 +43,28 @@ const (
 	ADVANCE_DATE   = 5   // 预请求时间（秒）
 )
 
-func GenerateRequest() *Request {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-		MaxIdleConnsPerHost: appconfig.GetConfig().Http.MaxIdleConnsPerHost,
-		DisableCompression:  false,
-		DisableKeepAlives:   true,
-	}
-	return &Request{
-		// Timeout: 10 * time.Second
-		client: &http.Client{Transport: tr},
+func GenerateInsaneRequest() *InsaneRequest {
+	return &InsaneRequest{
+		HttpRequest: GenerateHttpRequest(false),
 	}
 }
 
-func (request *Request) Dispose() {
+func (insaneRequest *InsaneRequest) Parse(vc []byte) {
+	data := gjson.ParseBytes(vc)
+	insaneRequest.Form = data.Get("form").String()
+	insaneRequest.ConCurrency = data.Get("conCurrent").Uint()
+	insaneRequest.Duration = data.Get("duration").Uint()
+	insaneRequest.Id = data.Get("id").String()
+
+	insaneRequest.HttpRequest.Url = data.Get("url").String()
+	insaneRequest.HttpRequest.Method = data.Get("method").String()
+	insaneRequest.HttpRequest.Cookie = data.Get("cookie").String()
+	insaneRequest.HttpRequest.HttpBody = new(HttpBody)
+	json.Unmarshal([]byte(data.Get("header").String()), &insaneRequest.HttpRequest.Header)
+	json.Unmarshal([]byte(data.Get("body").String()), &insaneRequest.HttpRequest.HttpBody.Body)
+}
+
+func (insaneRequest *InsaneRequest) Dispose() {
 	ch := make(chan *Response, 1000)
 
 	var (
@@ -81,18 +74,18 @@ func (request *Request) Dispose() {
 
 	// 统计数据
 	wgReceiving.Add(1)
-	go request.Report.ReceivingResults(request.Id, request.ConCurrency, ch, &wgReceiving)
+	go insaneRequest.Report.ReceivingResults(insaneRequest.Id, insaneRequest.ConCurrency, ch, &wgReceiving)
 
 	// request.duration时间后,结束所有请求
-	go request.timeClosure()
+	go insaneRequest.timeClosure()
 
-	for i := uint64(0); i < request.ConCurrency; i++ {
+	for i := uint64(0); i < insaneRequest.ConCurrency; i++ {
 		wg.Add(1)
-		switch request.Form {
+		switch insaneRequest.Form {
 		case TYPE_HTTP:
-			go Http(ch, &wg, request)
+			go insaneRequest.HttpRequest.Http(ch, &wg, insaneRequest.HttpRequest)
 		case TYPE_WEBSOCKET:
-			go Websocket(ch, &wg, request)
+			go Websocket(ch, &wg, insaneRequest)
 		default:
 			wg.Done()
 		}
@@ -102,36 +95,36 @@ func (request *Request) Dispose() {
 	// 延时1毫秒 确保数据都处理完成了
 	time.Sleep(1 * time.Millisecond)
 	close(ch)
-	close(request.stop)
-	request.Status = true
+	close(insaneRequest.HttpRequest.stop)
+	insaneRequest.Status = true
 
 	wgReceiving.Wait()
 	logger.Debug("dispose out...")
 }
 
-func (request *Request) Close() (err error) {
+func (insaneRequest *InsaneRequest) Close() (err error) {
 	defer func() {
 		if err2 := recover(); err2 != nil {
 			err = errors.New("fail")
 		}
 	}()
-	request.closeRequest()
+	insaneRequest.closeRequest()
 	return
 }
 
-func (request *Request) VerifyParam() (err error) {
-	if request.Url == "" || request.Form == "" {
+func (insaneRequest *InsaneRequest) VerifyParam() (err error) {
+	if insaneRequest.HttpRequest.Url == "" || insaneRequest.Form == "" {
 		err = errors.New("参数缺少")
 	}
 	return
 }
 
-func (request *Request) VerifyUrl() (err error) {
-	req, err := http.NewRequest(request.Method, request.Url, nil)
+func (insaneRequest *InsaneRequest) VerifyUrl() (err error) {
+	req, err := http.NewRequest(insaneRequest.HttpRequest.Method, insaneRequest.HttpRequest.Url, nil)
 	if err != nil {
 		return
 	}
-	resp, err := request.client.Do(req)
+	resp, err := insaneRequest.HttpRequest.client.Do(req)
 	if err != nil {
 		return
 	}
@@ -141,7 +134,7 @@ func (request *Request) VerifyUrl() (err error) {
 	return
 }
 
-func (request *Request) timeClosure() {
+func (insaneRequest *InsaneRequest) timeClosure() {
 	// recover一下，避免提前结束任务后,关闭stop导致的panic
 	defer func() {
 		if err := recover(); err != nil {
@@ -149,31 +142,31 @@ func (request *Request) timeClosure() {
 		}
 	}()
 
-	t := time.After(time.Duration(request.Duration) * time.Second)
+	t := time.After(time.Duration(insaneRequest.Duration) * time.Second)
 	<-t
 
-	if !request.Status { // 如果请求正在执行，终止它
-		request.closeRequest()
+	if !insaneRequest.Status { // 如果请求正在执行，终止它
+		insaneRequest.closeRequest()
 	}
 }
 
-func (request *Request) initStopCh() {
-	if request.ConCurrency > 0 {
-		request.stop = make(chan int, request.ConCurrency)
+func (insaneRequest *InsaneRequest) initStopCh() {
+	if insaneRequest.ConCurrency > 0 {
+		insaneRequest.HttpRequest.stop = make(chan int, insaneRequest.ConCurrency)
 	}
 }
 
-func (request *Request) closeRequest() {
-	for i := uint64(0); i < request.ConCurrency; i++ {
-		request.stop <- 1
+func (insaneRequest *InsaneRequest) closeRequest() {
+	for i := uint64(0); i < insaneRequest.ConCurrency; i++ {
+		insaneRequest.HttpRequest.stop <- 1
 	}
-	logger.Debug("close signal len: ", len(request.stop))
+	logger.Debug("close signal len: ", len(insaneRequest.HttpRequest.stop))
 }
 
 // 智能模式
 // 生成一些请求来计算服务器负载，在计算出并发数
 // （生成请求数） / （cpu消耗百分比）= （单个请求消耗cpu百分比）
-func (request *Request) Capacity() (avgLoad float64, err error) {
+func (insaneRequest *InsaneRequest) Capacity() (avgLoad float64, err error) {
 
 	logger.Debug("统计请求前的cpu负载...")
 	// 获取最近五次的cpu百分比
@@ -181,14 +174,14 @@ func (request *Request) Capacity() (avgLoad float64, err error) {
 
 	logger.Debug("智能模式开始...")
 
-	if err = request.VerifyUrl(); err != nil {
+	if err = insaneRequest.VerifyUrl(); err != nil {
 		return 0, err
 	}
 
-	if request.Form == "http" {
+	if insaneRequest.Form == "http" {
 		curlCh := make(chan uint32)
-		go request.advanceHttp(curlCh)
-		reqCpuLoad := request.requestCpuLoad(curlCh)
+		go insaneRequest.advanceHttp(curlCh)
+		reqCpuLoad := insaneRequest.requestCpuLoad(curlCh)
 
 		logger.Debug("统计负载结束...")
 
@@ -223,14 +216,14 @@ func (request *Request) Capacity() (avgLoad float64, err error) {
 		return avgLoad, err
 	}
 
-	if request.Form == "websocket" {
+	if insaneRequest.Form == "websocket" {
 
 	}
 
 	return 0, errors.New("智能模式必须是http | websocket")
 }
 
-func (request *Request) requestCpuLoad(curlCh chan uint32) (reqCpuLoad []uint32) {
+func (insaneRequest *InsaneRequest) requestCpuLoad(curlCh chan uint32) (reqCpuLoad []uint32) {
 	logger.Debug("统计负载开始...")
 	for {
 		select {
@@ -242,7 +235,7 @@ func (request *Request) requestCpuLoad(curlCh chan uint32) (reqCpuLoad []uint32)
 	}
 }
 
-func (request *Request) advanceHttp(curlCh chan uint32) {
+func (insaneRequest *InsaneRequest) advanceHttp(curlCh chan uint32) {
 
 	logger.Debug("正在执行预请求...")
 
@@ -263,8 +256,8 @@ func (request *Request) advanceHttp(curlCh chan uint32) {
 					adMutex.Unlock()
 					return
 				default:
-					req, _ := http.NewRequest(request.Method, request.Url, nil)
-					resp, err := request.client.Do(req)
+					req, _ := http.NewRequest(insaneRequest.HttpRequest.Method, insaneRequest.HttpRequest.Url, nil)
+					resp, err := insaneRequest.HttpRequest.client.Do(req)
 					if err != nil {
 						logger.Debug(err)
 						continue
@@ -274,20 +267,4 @@ func (request *Request) advanceHttp(curlCh chan uint32) {
 			}
 		}()
 	}
-}
-
-func (request *Request) advanceWebsocket() {
-
-}
-
-func (bodyField *BodyField) getValue() (val interface{}) {
-	switch bodyField.Type {
-	case "int":
-		val = utils.GetRandomintegers(bodyField.Len)
-	case "string":
-		val = utils.GetRandomStrings(bodyField.Len)
-	default:
-		val = utils.GetRandomStrings(bodyField.Len)
-	}
-	return
 }
