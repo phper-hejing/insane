@@ -83,7 +83,7 @@ func (insaneRequest *InsaneRequest) Dispose() {
 		wg.Add(1)
 		switch insaneRequest.Form {
 		case TYPE_HTTP:
-			go insaneRequest.HttpRequest.Http(ch, &wg, insaneRequest.HttpRequest)
+			go insaneRequest.HttpRequest.Http(ch, &wg)
 		case TYPE_WEBSOCKET:
 			go Websocket(ch, &wg, insaneRequest)
 		default:

@@ -70,16 +70,16 @@ func GenerateHttpRequest(ReadResponse bool) *HttpRequest {
 	}
 }
 
-func (httpRequest *HttpRequest) Http(ch chan<- *Response, wg *sync.WaitGroup, request *HttpRequest) {
+func (httpRequest *HttpRequest) Http(ch chan<- *Response, wg *sync.WaitGroup) {
 	sentCh := make(chan bool)
 	for {
 		select {
-		case <-request.stop:
+		case <-httpRequest.stop:
 
 			m.Lock()
 			i++
 			logger.Debug(fmt.Sprintf("%d号协程关闭", i))
-			if i == int64(cap(request.stop)) {
+			if i == int64(cap(httpRequest.stop)) {
 				i = 0
 			}
 			m.Unlock()
@@ -88,13 +88,13 @@ func (httpRequest *HttpRequest) Http(ch chan<- *Response, wg *sync.WaitGroup, re
 			wg.Done()
 			return
 		default:
-			go httpRequest.HttpSend(request.client, request, ch, sentCh)
+			go httpRequest.HttpSend(ch, sentCh)
 			<-sentCh
 		}
 	}
 }
 
-func (httpRequest *HttpRequest) HttpSend(client *http.Client, request *HttpRequest, ch chan<- *Response, sentCh chan bool) {
+func (httpRequest *HttpRequest) HttpSend(ch chan<- *Response, sentCh chan bool) {
 	var (
 		status    = false
 		isSuccess = false
@@ -128,14 +128,14 @@ func (httpRequest *HttpRequest) HttpSend(client *http.Client, request *HttpReque
 		httpSendRespCh(ch, resp)
 	}()
 
-	req, err := getHttpRequest(request)
+	req, err := getHttpRequest(httpRequest)
 	if err != nil {
 		resp.ErrCode = constant.ERROR_REQUEST_CREATED // 创建连接失败
 		resp.ErrMsg = err.Error()
 		return
 	}
 
-	rp, err := client.Do(req)
+	rp, err := httpRequest.client.Do(req)
 	if err != nil {
 		resp.ErrCode = constant.ERROR_REQUEST_CONNECTION // 连接失败
 		resp.ErrMsg = err.Error()
