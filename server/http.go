@@ -108,7 +108,19 @@ func (httpRequest *HttpRequest) HttpSend(ch chan<- *Response, sentCh chan bool) 
 		t := time.NewTicker(HTTP_RESPONSE_TIMEOUT)
 		<-t.C
 		if status == false {
+			end := utils.Now()
+			resp.ErrCode = errCode
+			resp.ErrMsg = fmt.Sprintf("默认超时时间%ds, 请重试", HTTP_RESPONSE_TIMEOUT / 1000000000)
+			resp.IsSuccess = isSuccess
+			resp.WasteTime = uint64(end - start)
+			resp.Data = respData
+
+			if err := recover(); err != nil {
+				logger.Debug(err)
+				resp.ErrMsg = err.(error).Error()
+			}
 			httpSendSentCh(sentCh)
+			httpSendRespCh(ch, resp)
 		}
 	}()
 	defer func() {
@@ -164,7 +176,7 @@ func (httpRequest *HttpRequest) verify(resp *http.Response) (isSuccess bool, cod
 func httpSendSentCh(sentCh chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
-			//logger.Debug(err)
+			logger.Debug(err)
 		}
 	}()
 	sentCh <- true
@@ -173,7 +185,7 @@ func httpSendSentCh(sentCh chan bool) {
 func httpSendRespCh(respCh chan<- *Response, response *Response) {
 	defer func() {
 		if err := recover(); err != nil {
-			//logger.Debug(err)
+			logger.Debug(err)
 		}
 	}()
 	respCh <- response

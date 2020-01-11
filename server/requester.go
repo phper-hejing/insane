@@ -28,11 +28,11 @@ type InsaneRequest struct {
 }
 
 type Response struct {
-	WasteTime uint64      // 消耗时间（毫秒）
-	IsSuccess bool        // 是否请求成功
-	ErrCode   int         // 错误码
-	ErrMsg    string      // 错误提示
-	Data      interface{} // 响应数据
+	WasteTime uint64 `json:"wasteTime"`      // 消耗时间（毫秒）
+	IsSuccess bool  `json:"isSuccess"`       // 是否请求成功
+	ErrCode   int     `json:"errCode"`     // 错误码
+	ErrMsg    string  `json:"errMsg"`    // 错误提示
+	Data      interface{} `json:"data"` // 响应数据
 }
 
 const (

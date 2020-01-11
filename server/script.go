@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"github.com/tidwall/gjson"
 )
 
@@ -23,28 +24,32 @@ func GenerateScript() *Script {
 	}
 }
 
-func (script *Script) Validate() (scriptResp []*ScriptResponse, err error) {
-	//var (
-	//	wg       sync.WaitGroup
-	//	response = make(chan *Response, len(script.Data))
-	//)
-	//for _, v := range script.Data {
-	//	wg.Add(1)
-	//	script.HttpRequest.Url = v.Get("data.url").String()
-	//	script.HttpRequest.Method = v.Get("data.method").String()
-	//	script.HttpRequest.Cookie = v.Get("cookie").String()
-	//	script.HttpRequest.HttpBody = new(HttpBody)
-	//	header := v.Get("header").String()
-	//	body := v.Get("body").String()
-	//	json.Unmarshal([]byte(header), &script.HttpRequest.Header)
-	//	json.Unmarshal([]byte(body), &script.HttpRequest.HttpBody.Body)
-	//
-	//	scriptResp := &ScriptResponse{
-	//		Name:     v.Get("data.name").String(),
-	//		Response: new(Response),
-	//	}
-	//	script.HttpRequest.Http(scriptResp.Response, &wg)
-	//	wg.Wait()
-	//}
+func (script *Script) Validate()  {
+
+	sentCh := make(chan bool)
+	response := make(chan *Response, 1)
+
+	for _, v := range script.Data {
+		script.HttpRequest.Url = v.Get("data.url").String()
+		script.HttpRequest.Method = v.Get("data.method").String()
+		script.HttpRequest.Cookie = v.Get("cookie").String()
+		script.HttpRequest.HttpBody = new(HttpBody)
+		header := v.Get("header").String()
+		body := v.Get("body").String()
+		json.Unmarshal([]byte(header), &script.HttpRequest.Header)
+		json.Unmarshal([]byte(body), &script.HttpRequest.HttpBody.Body)
+
+		go script.HttpRequest.HttpSend(response, sentCh)
+		<-sentCh
+
+		script.ScriptResponse = append(script.ScriptResponse, &ScriptResponse{
+			Name:     v.Get("data.name").String(),
+			Response: <-response,
+		})
+	}
+}
+
+func (script *Script) GetResponse() (vc []byte, err error) {
+	vc, err = json.Marshal(script.ScriptResponse)
 	return
 }

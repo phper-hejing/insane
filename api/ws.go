@@ -51,7 +51,7 @@ func (wsMessage *WsMessage) Do() {
 				logger.Debug("ws close")
 				return
 			}
-			wsMessage.send(WS_TYPE_PING, "", "")
+			wsMessage.send(WS_TYPE_PING, nil, "")
 		}
 	}()
 
@@ -82,13 +82,20 @@ func (wsMessage *WsMessage) Do() {
 	}
 }
 
-func (wsMessage *WsMessage) send(wsType string, wsErr string, data interface{}) {
+func (wsMessage *WsMessage) send(wsType string, wsErr error, data interface{}) {
+	// websocket并发有问题，这里使用互斥锁
 	wsMessage.M.Lock()
 	defer wsMessage.M.Unlock()
+
+	var err1 string
+	if wsErr != nil {
+		err1 = wsErr.Error()
+	}
+
 	dataByte, err := json.Marshal(WsResponse{
 		Type:  wsType,
 		Data:  data,
-		Error: wsErr,
+		Error: err1,
 	})
 	if err != nil {
 		logger.Debug(err)
@@ -114,21 +121,24 @@ func (wsMessage *WsMessage) reqReport() {
 		if server.TK.TaskListStatus(taskId) == server.COMPLETED_TASK {
 			// 如果任务状态已完成，最后发送一次report然后结束
 			report := server.TK.TaskListInfo(taskId)
-			wsMessage.send(WS_TYPE_REPORT, "", report)
+			wsMessage.send(WS_TYPE_REPORT, nil, report)
 			return
 		}
 		report := server.TK.TaskListInfo(taskId)
-		wsMessage.send(WS_TYPE_REPORT, "", report)
+		wsMessage.send(WS_TYPE_REPORT, nil, report)
 	}
 }
 
 func (wsMessage *WsMessage) testScript() {
-	err := errors.New("")
-	data := wsMessage.MessageData.Get("data.data").Array()
-	scriptProto := wsMessage.MessageData.Get("data.protocol").String()
+	var (
+		err error
+		vc = make([]byte, 0)
+		data = wsMessage.MessageData.Get("data.data").Array()
+		scriptProto = wsMessage.MessageData.Get("data.protocol").String()
+	)
 
 	defer func() {
-		wsMessage.send(WS_TYPE_SCRIPT, err.Error(), nil)
+		wsMessage.send(WS_TYPE_SCRIPT, err, string(vc))
 	}()
 
 	if data == nil {
@@ -139,4 +149,5 @@ func (wsMessage *WsMessage) testScript() {
 	script.Proto = scriptProto
 	script.Data = data
 	script.Validate()
+	vc, err = script.GetResponse()
 }
