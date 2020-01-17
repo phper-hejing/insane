@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/donnie4w/go-logger/logger"
@@ -14,30 +13,34 @@ import (
 
 type InsaneRequest struct {
 	// 请求赋值
-	HttpRequest *HttpRequest `json:"httpRequest"`
-	ConCurrency uint64       `json:"conCurrent"` // 并发数
-	Duration    uint64       `json:"duration"`   // 持续时间（秒）
-	Interval    int32        `json:"interval"`   // 请求间隔时间
-	Form        string       `json:"form"`       // http|websocket
-	Type        string       `json:"type"`       // 请求模式 （common | capacity） default：common
+	HttpRequest   *HttpRequest   `json:"httpRequest"`
+	ScriptRequest *ScriptRequest `json:"scriptRequest"`
+	ConCurrency   uint64         `json:"conCurrent"` // 并发数
+	Duration      uint64         `json:"duration"`   // 持续时间（秒）
+	Interval      int32          `json:"interval"`   // 请求间隔时间
+	Form          string         `json:"form"`       // http|websocket
+	Type          string         `json:"type"`       // 请求模式 （common | capacity） default：common
 
 	// 系统赋值
-	Id     string  `json:"id"`
-	Status bool    `json:"status"`
-	Report *Report `json:"report"`
+	Id               string            `json:"id"`
+	Status           bool              `json:"status"`
+	Report           *Report           `json:"report"`
+	ScriptReportList *ScriptReportList `json:"scriptReportList"`
+	Stop             chan int
 }
 
 type Response struct {
-	WasteTime uint64 `json:"wasteTime"`      // 消耗时间（毫秒）
-	IsSuccess bool  `json:"isSuccess"`       // 是否请求成功
-	ErrCode   int     `json:"errCode"`     // 错误码
-	ErrMsg    string  `json:"errMsg"`    // 错误提示
-	Data      interface{} `json:"data"` // 响应数据
+	WasteTime uint64      `json:"wasteTime"` // 消耗时间（毫秒）
+	IsSuccess bool        `json:"isSuccess"` // 是否请求成功
+	ErrCode   int         `json:"errCode"`   // 错误码
+	ErrMsg    string      `json:"errMsg"`    // 错误提示
+	Data      interface{} `json:"data"`      // 响应数据
 }
 
 const (
 	TYPE_HTTP      = "http"
 	TYPE_WEBSOCKET = "websocket"
+	TYPE_SCRIPT    = "script"
 	ADVAMCE_CPU    = 5   // 预请求前，计算cpu时间（秒）
 	ADVANCE_COUNT  = 100 // 预请求协程数
 	ADVANCE_DATE   = 5   // 预请求时间（秒）
@@ -55,17 +58,12 @@ func (insaneRequest *InsaneRequest) Parse(vc []byte) {
 	insaneRequest.ConCurrency = data.Get("conCurrent").Uint()
 	insaneRequest.Duration = data.Get("duration").Uint()
 	insaneRequest.Id = data.Get("id").String()
-
-	insaneRequest.HttpRequest.Url = data.Get("url").String()
-	insaneRequest.HttpRequest.Method = data.Get("method").String()
-	insaneRequest.HttpRequest.Cookie = data.Get("cookie").String()
-	insaneRequest.HttpRequest.HttpBody = new(HttpBody)
-	json.Unmarshal([]byte(data.Get("header").String()), &insaneRequest.HttpRequest.Header)
-	json.Unmarshal([]byte(data.Get("body").String()), &insaneRequest.HttpRequest.HttpBody.Body)
+	insaneRequest.HttpRequest.Parse(data)
 }
 
 func (insaneRequest *InsaneRequest) Dispose() {
-	ch := make(chan *Response, 1000)
+	respCh := make(chan *Response, 1000)
+	scriptRespCh := make(chan *ScriptReport, 1000)
 
 	var (
 		wg          sync.WaitGroup // 请求完成
@@ -74,7 +72,6 @@ func (insaneRequest *InsaneRequest) Dispose() {
 
 	// 统计数据
 	wgReceiving.Add(1)
-	go insaneRequest.Report.ReceivingResults(insaneRequest.Id, insaneRequest.ConCurrency, ch, &wgReceiving)
 
 	// request.duration时间后,结束所有请求
 	go insaneRequest.timeClosure()
@@ -82,10 +79,19 @@ func (insaneRequest *InsaneRequest) Dispose() {
 	for i := uint64(0); i < insaneRequest.ConCurrency; i++ {
 		wg.Add(1)
 		switch insaneRequest.Form {
+
 		case TYPE_HTTP:
-			go insaneRequest.HttpRequest.Http(ch, &wg)
+			go insaneRequest.Report.ReceivingResults(insaneRequest.Id, insaneRequest.ConCurrency, respCh, &wgReceiving)
+			go insaneRequest.HttpRequest.Run(i, respCh, &wg, insaneRequest.Stop)
+
 		case TYPE_WEBSOCKET:
-			go Websocket(ch, &wg, insaneRequest)
+			go insaneRequest.Report.ReceivingResults(insaneRequest.Id, insaneRequest.ConCurrency, respCh, &wgReceiving)
+			go Websocket(respCh, &wg, insaneRequest)
+
+		case TYPE_SCRIPT:
+			go insaneRequest.ScriptReportList.ReceivingResults(insaneRequest.Id, insaneRequest.ConCurrency, scriptRespCh, &wgReceiving)
+			go insaneRequest.ScriptRequest.Run(i, scriptRespCh, &wg, insaneRequest.Stop)
+
 		default:
 			wg.Done()
 		}
@@ -94,8 +100,9 @@ func (insaneRequest *InsaneRequest) Dispose() {
 	wg.Wait()
 	// 延时1毫秒 确保数据都处理完成了
 	time.Sleep(1 * time.Millisecond)
-	close(ch)
-	close(insaneRequest.HttpRequest.stop)
+	close(respCh)
+	close(scriptRespCh)
+	close(insaneRequest.Stop)
 	insaneRequest.Status = true
 
 	wgReceiving.Wait()
@@ -152,15 +159,15 @@ func (insaneRequest *InsaneRequest) timeClosure() {
 
 func (insaneRequest *InsaneRequest) initStopCh() {
 	if insaneRequest.ConCurrency > 0 {
-		insaneRequest.HttpRequest.stop = make(chan int, insaneRequest.ConCurrency)
+		insaneRequest.Stop = make(chan int, insaneRequest.ConCurrency)
 	}
 }
 
 func (insaneRequest *InsaneRequest) closeRequest() {
 	for i := uint64(0); i < insaneRequest.ConCurrency; i++ {
-		insaneRequest.HttpRequest.stop <- 1
+		insaneRequest.Stop <- 1
 	}
-	logger.Debug("close signal len: ", len(insaneRequest.HttpRequest.stop))
+	logger.Debug("close signal len: ", len(insaneRequest.Stop))
 }
 
 // 智能模式

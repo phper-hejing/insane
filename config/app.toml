@@ -17,3 +17,7 @@ location = "./log"
 # cluster
 [cluster]
 masterUrl = ""
+
+# file
+[file]
+uploadPath = "./download"

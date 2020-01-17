@@ -43,7 +43,7 @@ func Websocket(ch chan<- *Response, wg *sync.WaitGroup, insaneRequest *InsaneReq
 
 	for {
 		select {
-		case <-insaneRequest.HttpRequest.stop:
+		case <-insaneRequest.Stop:
 			rstop <- 1
 			return
 		default:
@@ -56,7 +56,9 @@ func Websocket(ch chan<- *Response, wg *sync.WaitGroup, insaneRequest *InsaneReq
 func wsSend(conn *websocket.Conn, insaneRequest *InsaneRequest) (err error) {
 
 	// 发送数据
-	data := CreateJsonBody(insaneRequest.HttpRequest.HttpBody)
+	//data := CreateJsonBody(insaneRequest.HttpRequest.HttpBody)
+	// TODO websocket
+	data := ""
 	if err := conn.WriteMessage(constant.MSG_TYPE, []byte(data)); err != nil {
 		logger.Debug(err)
 		return err

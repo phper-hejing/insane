@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/donnie4w/go-logger/logger"
+	"insane/general/base/appconfig"
 	"os"
 	"strings"
 )
@@ -16,7 +17,7 @@ type CsvInfoMessage struct {
 func (csvInfoMessage CsvInfoMessage) Do() {
 	pathArr := strings.Split(csvInfoMessage.Request.RequestURI, "/")
 	fileName := pathArr[len(pathArr)-1]
-	filePath := fmt.Sprintf("%s/%s", UPLOAD_PATH, fileName)
+	filePath := fmt.Sprintf("%s/%s", appconfig.GetConfig().File.UploadPath, fileName)
 	f, err := os.Open(filePath)
 	csv := csv.NewReader(f)
 	record, err := csv.ReadAll()

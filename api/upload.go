@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/donnie4w/go-logger/logger"
+	"insane/general/base/appconfig"
 	"insane/utils"
 	"io"
 	"os"
@@ -14,8 +15,6 @@ import (
 type UploadMessage struct {
 	Message
 }
-
-const UPLOAD_PATH = "./download"
 
 type UploadResp struct {
 	FileName string     `json:"fileName"`
@@ -44,7 +43,7 @@ func (uploadMessage *UploadMessage) Do() {
 	fileNameSlice := strings.Split(handler.Filename, ".")
 	suffix := fileNameSlice[len(fileNameSlice)-1]
 	fileName = fmt.Sprintf("%d.%s", utils.Now(), suffix)
-	filePath := fmt.Sprintf("%s/%s", UPLOAD_PATH, fileName)
+	filePath := fmt.Sprintf("%s/%s", appconfig.GetConfig().File.UploadPath, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0666)
 
 	if err != nil {

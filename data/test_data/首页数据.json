@@ -1,1 +1,1 @@
-{"file":{"name":"1578381109909.csv","status":"done","uid":"rc-upload-1578381102768-2","url":"1578381109909.csv"},"fileId":"fds","testCol":14,"testName":"首页数据","testRow":50098}
+{"file":{"column":["id","username","password","email","status","created_at","updated_at","role_id","user_id","type","check_ip"],"name":"1578996977232.csv","status":"done","uid":"rc-upload-1578996904697-2","url":"1578996977232.csv"},"fileId":"首页数据","testCol":11,"testName":"首页数据","testRow":11}

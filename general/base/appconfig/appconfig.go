@@ -9,6 +9,7 @@ type InsaneConfigs struct {
 	Worker  Worker     `toml:"worker"`
 	Log     Log        `toml:"log"`
 	Cluster Cluster    `toml:"cluster"`
+	File    File       `toml:"file"`
 }
 
 type HttpConfig struct {
@@ -29,6 +30,10 @@ type Worker struct {
 
 type Log struct {
 	Location string `toml:"location"`
+}
+
+type File struct {
+	UploadPath string `toml:"uploadPath"`
 }
 
 var cnf InsaneConfigs

@@ -1,1 +1,1 @@
-{"file":{"name":"1578381505608.csv","status":"done","uid":"rc-upload-1578381422208-5","url":"1578381505608.csv"},"fileId":"das","testCol":11,"testName":"登录数据","testRow":11}
+{"file":{"column":["id","user_id","device_id","device_type","os","game_type","player_sex","player_province","player_city","timestamp","sceneId","ext","created_at","updated_at"],"name":"1578995720896.csv","status":"done","uid":"rc-upload-1578994774452-15","url":"1578995720896.csv"},"fileId":"登录数据","testCol":14,"testName":"登录数据","testRow":50098}

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/donnie4w/go-logger/logger"
 	"github.com/tidwall/gjson"
 	"insane/constant"
@@ -44,14 +45,18 @@ func (wsMessage *WsMessage) Do() {
 
 	// 心跳
 	go func() {
-		t := time.NewTicker(constant.MSG_HEARTBEAT * time.Second)
+		t := time.NewTicker(time.Duration(constant.MSG_HEARTBEAT) * time.Second)
 		for {
 			<-t.C
 			if wsConn == nil {
 				logger.Debug("ws close")
 				return
 			}
-			wsMessage.send(WS_TYPE_PING, nil, "")
+			if err := wsMessage.send(WS_TYPE_PING, nil, ""); err != nil {
+				wsConn.Close()
+				logger.Debug("client close")
+				return
+			}
 		}
 	}()
 
@@ -60,7 +65,7 @@ func (wsMessage *WsMessage) Do() {
 
 		if err != nil {
 			logger.Debug(err)
-			wsMessage.close()
+			wsMessage.taskClose()
 			break
 		}
 
@@ -82,7 +87,7 @@ func (wsMessage *WsMessage) Do() {
 	}
 }
 
-func (wsMessage *WsMessage) send(wsType string, wsErr error, data interface{}) {
+func (wsMessage *WsMessage) send(wsType string, wsErr error, data interface{}) (err error) {
 	// websocket并发有问题，这里使用互斥锁
 	wsMessage.M.Lock()
 	defer wsMessage.M.Unlock()
@@ -99,12 +104,17 @@ func (wsMessage *WsMessage) send(wsType string, wsErr error, data interface{}) {
 	})
 	if err != nil {
 		logger.Debug(err)
-		return
+		return err
 	}
-	wsMessage.Message.WsConn.WriteMessage(constant.MSG_TYPE, dataByte)
+	if err := wsMessage.Message.WsConn.WriteMessage(constant.MSG_TYPE, dataByte); err != nil {
+		logger.Debug(err)
+		return err
+	}
+	logger.Info(fmt.Sprintf("remote addr: %s, type: %s, data: %s", wsMessage.Message.WsConn.RemoteAddr().String(), wsType, string(dataByte)))
+	return nil
 }
 
-func (wsMessage *WsMessage) close() {
+func (wsMessage *WsMessage) taskClose() {
 	if taskId != "" {
 		err := server.TK.TaskListRemove(taskId)
 		if err != nil {
@@ -131,10 +141,9 @@ func (wsMessage *WsMessage) reqReport() {
 
 func (wsMessage *WsMessage) testScript() {
 	var (
-		err error
-		vc = make([]byte, 0)
+		err  error
+		vc   = make([]byte, 0)
 		data = wsMessage.MessageData.Get("data.data").Array()
-		scriptProto = wsMessage.MessageData.Get("data.protocol").String()
 	)
 
 	defer func() {
@@ -145,9 +154,8 @@ func (wsMessage *WsMessage) testScript() {
 		err = errors.New("data不是一个数组")
 		return
 	}
-	script := server.GenerateScript()
-	script.Proto = scriptProto
-	script.Data = data
-	script.Validate()
-	vc, err = script.GetResponse()
+	script := server.ScriptRequest{
+		Data: data,
+	}
+	vc, err = script.Validate()
 }
