@@ -10,6 +10,6 @@ require (
 	github.com/gorilla/websocket v1.4.1
 	github.com/shirou/gopsutil v2.19.11+incompatible
 	github.com/stretchr/testify v1.4.0 // indirect
-	github.com/tidwall/gjson v1.3.5
+	github.com/tidwall/gjson v1.6.5
 	golang.org/x/sys v0.0.0-20191219235734-af0d71d358ab // indirect
 )
